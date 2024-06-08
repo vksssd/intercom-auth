@@ -11,7 +11,7 @@ COPY . .
 RUN go mod tidy
 
 # Build the Go app
-RUN go build -o auth ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o auth ./cmd/main.go
 
 # Use a minimal base image for the final build
 FROM alpine:latest
