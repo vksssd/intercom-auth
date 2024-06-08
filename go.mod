@@ -1,6 +1,6 @@
 module github.com/vksssd/intercom-auth
 
-go 1.20
+go 1.22.4
 
 require github.com/spf13/viper v1.19.0
 
