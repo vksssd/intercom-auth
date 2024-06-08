@@ -1,14 +1,14 @@
 version: 2.1
 
 executors:
-  docker-executor:
-    docker:
-      - image: docker.io/docker:20.10.7
+  machine-executor:
+    machine:
+      image: ubuntu-2204:current
     working_directory: /app
 
 jobs:
   build-auth:
-    executor: docker-executor
+    executor: machine-executor
     steps:
       - checkout
 
