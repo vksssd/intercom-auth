@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/golang:1.22.4
+      - image: cimg/go:1.22.4
     working_directory: /go/src/github.com/vksssd/intercom/auth-service
 
 jobs:
