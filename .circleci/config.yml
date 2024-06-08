@@ -1,25 +1,16 @@
 version: 2.1
 
 executors:
-  machine-executor:
-    machine:
-      image: ubuntu-2204:current
-  
+  docker-executor:
+    docker:
+      - image: docker.io/docker:20.10.7
+    working_directory: /app
+
 jobs:
   build-auth:
-    executor: machine-executor
+    executor: docker-executor
     steps:
-      # - setup_remote_docker:
-      #     version: 20.10.7
-      #     docker_layer_caching: true
-
       - checkout
-
-      # - restore_cache:
-      #     name: Restore build cache
-      #     keys:
-      #       - go-mod-v1-{{ checksum "go.sum" }}
-      #       - go-mod-v1-
 
       - run:
           name: Go mod tidy
@@ -29,34 +20,28 @@ jobs:
           name: Build application
           command: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o auth ./cmd/main.go
 
-
-      # - save_cache:
-      #     paths:
-      #       - /go/pkg/mod
-      #     key: go-mod-v1-{{ checksum "go.sum" }}
-
       - run:
-        name: Build and push Docker image
-        command: |
-          docker --version
-          docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-          TAG=$(echo $CIRCLE_SHA1 | cut -c1-7)
-          docker buildx create --use
-          docker buildx build --platform linux/arm64 -t vksssd/intercom-auth:$TAG .
-          docker push vksssd/intercom-auth:$TAG
-          docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
-          docker push vksssd/intercom-auth:latest
+          name: Build and push Docker image
+          command: |
+            docker --version
+            docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+            TAG=$(echo $CIRCLE_SHA1 | cut -c1-7)
+            docker buildx create --use
+            docker buildx build --platform linux/arm64 -t vksssd/intercom-auth:$TAG .
+            docker push vksssd/intercom-auth:$TAG
+            docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
+            docker push vksssd/intercom-auth:latest
 
 services:
   mongodb:
     image: mongo:4.4.7
-    expose:
-      - "27017"
+    ports:
+      - "27017:27017"
 
   redis:
     image: redis:6.2.6
-    expose:
-      - "6379"
+    ports:
+      - "6379:6379"
 
 workflows:
   version: 2
