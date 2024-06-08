@@ -24,7 +24,7 @@ jobs:
 
       - run:
           command: |
-            cd app
+            # cd app
             go build -o intercom ./cmd/main.go
       - run:
           name: Build and push Docker auth-image
