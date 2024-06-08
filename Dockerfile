@@ -22,7 +22,7 @@ RUN apk --no-cache add ca-certificates libc6-compat
 WORKDIR /app
 
 # Copy the binary from the builder
-COPY --from=builder /app .
+COPY --from=builder /app/auth .
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
