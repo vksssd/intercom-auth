@@ -16,6 +16,8 @@ RUN go build -o auth ./cmd/main.go
 # Use a minimal base image for the final build
 FROM alpine:latest
 
+RUN apk --no-cache add ca-certificates libc6-compat
+
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
