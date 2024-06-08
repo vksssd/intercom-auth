@@ -7,7 +7,7 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
  
-checkout -b "$2"
+git checkout -b "$2"
 
 git add .
 
