@@ -10,12 +10,13 @@ COPY . .
 # Fetch dependencies
 RUN go mod tidy
 
-# Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o auth ./cmd/main.go
+# Build the Go app with static linking
+RUN go build -o auth ./cmd/main.go
 
 # Use a minimal base image for the final build
 FROM alpine:latest
 
+# Install necessary CA certificates and compatibility libraries
 RUN apk --no-cache add ca-certificates libc6-compat
 
 # Set the Current Working Directory inside the container
