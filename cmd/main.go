@@ -2,8 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/vksssd/intercom-auth/config"
+	"log"
+	"net/http"
+	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/vksssd/intercom-auth/config"
+	"github.com/vksssd/intercom-auth/internal/handlers"
+	"github.com/vksssd/intercom-auth/pkg/redis"
 )
 
 func main() {
@@ -23,5 +29,20 @@ func main() {
 	cfg, err := config.ConfigInit()
 	fmt.Println(cfg,err)
 
-	fmt.Printf("Hello, World!")
+	redis.Init()
+
+
+	r :=  mux.NewRouter()
+	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
+	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
+
+	server := &http.Server{
+		Handler: r,
+		Addr: "0.0.0.0:8080",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout: 15*time.Second,
+	}
+
+	log.Fatal(server.ListenAndServe())
+	
 }
