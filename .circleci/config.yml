@@ -40,11 +40,13 @@ jobs:
       - run:
           name: Build and push Docker auth-image
           command: |
-            # TAG=$(echo $CIRCLE_SHA1 | cut -c1-7)
+            docker --version
+            docker info
+            TAG=$(echo $CIRCLE_SHA1 | cut -c1-7)
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker build -t vksssd/intercom-auth:latest .
-            # docker push vksssd/intercom-auth:$TAG
-            # docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
+            docker build -t vksssd/intercom-auth:$TAG .
+            docker push vksssd/intercom-auth:$TAG
+            docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
             docker push vksssd/intercom-auth:latest
 
 services:
