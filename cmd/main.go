@@ -35,6 +35,7 @@ func main() {
 	r :=  mux.NewRouter()
 	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
 	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
+	r.HandleFunc("/ping", handlers.HelloHandler)
 
 	server := &http.Server{
 		Handler: r,
