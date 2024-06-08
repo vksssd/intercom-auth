@@ -1,9 +1,19 @@
 package main
 
-import "fmt"
+import (
+	"github.com/vksssd/intercom-auth/config"
+	"fmt"
+)
 
 
 func main() {
-	// This is a placeholder. The actual implementation is in the auth-service/app/main.go file
+
+	cfg, err := config.Init()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(cfg)
+
 	fmt.Printf("Hello, World!")
 }
