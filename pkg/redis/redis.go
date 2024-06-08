@@ -10,7 +10,7 @@ var RedisClient *redis.Client
 
 func Init() {
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: os.Getenv("REDIS_URL"),
+		Addr: "http://localhost:6379",
 		// Database: os.Getenv("REDIS_DATABASE")
 	})
 }

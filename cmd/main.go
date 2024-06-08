@@ -26,8 +26,8 @@ func main() {
 
 	// fmt.Println(cfg)
 
-	cfg, err := config.ConfigInit()
-	fmt.Println(cfg,err)
+	// cfg, err := config.ConfigInit()
+	// fmt.Println(cfg,err)
 
 	redis.Init()
 
