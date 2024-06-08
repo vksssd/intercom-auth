@@ -17,7 +17,7 @@ RUN go build -o auth ./cmd/main.go
 FROM alpine:latest
 
 # Install necessary CA certificates and compatibility libraries
-RUN apk --no-cache add ca-certificates libc6-compat
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 apk --no-cache add ca-certificates libc6-compat
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
