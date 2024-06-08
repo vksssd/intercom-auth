@@ -27,7 +27,7 @@ jobs:
 
       - run:
           name: Build application
-          command: go build -o intercom ./cmd/main.go
+          command: go build -o auth ./cmd/main.go
 
       # - save_cache:
       #     paths:
