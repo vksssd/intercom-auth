@@ -24,6 +24,8 @@ jobs:
 
       - run:
           command: |
+            export GOPATH=$HOME/go
+
             go mod tidy
             # cd app
             go build -o intercom ./cmd/main.go
