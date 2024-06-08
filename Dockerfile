@@ -11,6 +11,8 @@ COPY . .
 RUN go mod tidy
 
 # Build the Go app with static linking
+# RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o auth ./cmd/main.go
+
 RUN go build -o auth ./cmd/main.go
 
 # Expose port 8080 to the outside world
