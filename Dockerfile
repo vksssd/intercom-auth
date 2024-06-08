@@ -14,8 +14,7 @@ RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o auth ./cmd/main.go
 
 # Use an Alpine image for the final build targeting arm64 architecture
-FROM arm64v8/alpine:latest
-
+FROM alpine:latest
 # # Install necessary CA certificates
 # RUN apk --no-cache add ca-certificates
 
