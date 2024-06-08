@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./config/config"
+	"intercom-auth/config"
 	"fmt"
 )
 
