@@ -11,7 +11,7 @@ COPY . .
 RUN go mod tidy
 
 # Build the Go app with static linking
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o auth ./cmd/main.go
+RUN  go build -o auth ./cmd/main.go
 
 # Use an Alpine image for the final build targeting arm64 architecture
 FROM arm64v8/alpine:latest
