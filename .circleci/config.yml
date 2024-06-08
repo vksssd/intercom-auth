@@ -24,8 +24,19 @@ jobs:
 
       - run:
           command: |
+            go mod tidy
             # cd app
             go build -o intercom ./cmd/main.go
+
+      # - run:
+      #     command: |
+      #       go test ./...
+
+      - save_cache:
+          paths:
+            - /go/pkg/mod
+          key: go-mod-v1-{{ checksum "go.mod" }}
+
       - run:
           name: Build and push Docker auth-image
           command: |
