@@ -30,7 +30,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request){
 
 	err = redis.RedisClient.Set(ctx, user.Username, hashedPassword, 0).Err()
 	if err != nil {
-		http.Error(w, "SErver error", http.StatusInternalServerError)
+		http.Error(w, "Server error", http.StatusInternalServerError)
 		return
 	}
 
