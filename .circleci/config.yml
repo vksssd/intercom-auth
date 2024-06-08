@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: circleci/golang:1.16
+      - image: cimg/golang:1.16
     working_directory: /go/src/github.com/vksssd/intercom/auth-service
 
 jobs:
