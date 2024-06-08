@@ -32,6 +32,11 @@ jobs:
             docker push vksssd/intercom-auth:$TAG
             docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
             docker push vksssd/intercom-auth:latest
+        
+      # - run:
+      #     name: Send Telegram Notification
+      #     command: |
+      #       curl -s -X POST https://api.telegram.org/botAAE8kmWI3GFERMOR6iFpr5m64Ngj0_MRo8/sendMessage -d chat_id=<YOUR_CHAT_ID> -d text="Docker image built and pushed successfully!"
 
 services:
   mongodb:
