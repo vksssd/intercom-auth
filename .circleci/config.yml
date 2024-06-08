@@ -27,7 +27,8 @@ jobs:
 
       - run:
           name: Build application
-          command: go build -o auth ./cmd/main.go
+          command: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o auth ./cmd/main.go
+
 
       # - save_cache:
       #     paths:
