@@ -2,7 +2,11 @@ module github.com/vksssd/intercom-auth
 
 go 1.22.4
 
-require github.com/spf13/viper v1.19.0
+require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/spf13/viper v1.19.0
+	golang.org/x/crypto v0.21.0
+)
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
