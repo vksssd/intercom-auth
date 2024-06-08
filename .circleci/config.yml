@@ -4,7 +4,7 @@ executors:
   docker-executor:
     docker:
       - image: cimg/go:1.22.4
-    working_directory: /go/src/github.com/vksssd/intercom-auth
+    working_directory: /go/src/github.com/vksssd/intercom/auth-service
 
 jobs:
   build-auth:
@@ -14,18 +14,16 @@ jobs:
           version: 20.10.7
           docker_layer_caching: true
 
-      # - checkout
+      - checkout
 
-      # - restore_cache:
-      #     name: Restore build cache
-      #     keys:
-      #       - go-mod-v1-{{ checksum "go.mod" }}
-      #       - go-mod-v1-
+      - restore_cache:
+          name: Restore build cache
+          keys:
+            - go-mod-v1-{{ checksum "go.mod" }}
+            - go-mod-v1-
 
       - run:
           command: |
-            export GOPATH=$HOME/go
-
             go mod tidy
             # cd app
             go build -o intercom ./cmd/main.go
@@ -34,10 +32,10 @@ jobs:
       #     command: |
       #       go test ./...
 
-      # - save_cache:
-      #     paths:
-      #       - /go/pkg/mod
-      #     key: go-mod-v1-{{ checksum "go.mod" }}
+      - save_cache:
+          paths:
+            - /go/pkg/mod
+          key: go-mod-v1-{{ checksum "go.mod" }}
 
       - run:
           name: Build and push Docker auth-image
