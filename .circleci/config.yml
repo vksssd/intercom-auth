@@ -14,13 +14,13 @@ jobs:
           version: 20.10.7
           docker_layer_caching: true
 
-      - checkout
+      # - checkout
 
-      - restore_cache:
-          name: Restore build cache
-          keys:
-            - go-mod-v1-{{ checksum "go.mod" }}
-            - go-mod-v1-
+      # - restore_cache:
+      #     name: Restore build cache
+      #     keys:
+      #       - go-mod-v1-{{ checksum "go.mod" }}
+      #       - go-mod-v1-
 
       - run:
           command: |
@@ -32,10 +32,10 @@ jobs:
       #     command: |
       #       go test ./...
 
-      - save_cache:
-          paths:
-            - /go/pkg/mod
-          key: go-mod-v1-{{ checksum "go.mod" }}
+      # - save_cache:
+      #     paths:
+      #       - /go/pkg/mod
+      #     key: go-mod-v1-{{ checksum "go.mod" }}
 
       - run:
           name: Build and push Docker auth-image
