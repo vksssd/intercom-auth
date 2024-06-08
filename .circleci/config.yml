@@ -1,0 +1,55 @@
+version: 2.1
+
+executors:
+  docker-executor:
+    docker:
+      - image: circleci/golang:1.16
+    working_directory: /go/src/github.com/vksssd/intercom/auth-service
+
+jobs:
+  build-auth:
+    executor: docker-executor
+    steps:
+      - setup_remote_docker:
+          version: 20.10.7
+          docker_layer_caching: true
+
+      - checkout
+
+      - restore_cache:
+          name: Restore build cache
+          keys:
+            - go-mod-v1-{{ checksum "go.mod" }}
+            - go-mod-v1-
+
+      - run:
+          command: |
+            cd app
+            go build -o intercom ./cmd/main.go
+      - run:
+          name: Build and push Docker auth-image
+          command: |
+            TAG=$(echo $CIRCLE_SHA1 | cut -c1-7)
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker build -t vksssd/intercom-auth:$TAG .
+            docker push vksssd/intercom-auth:$TAG
+            docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
+            docker push vksssd/intercom-auth:latest
+
+services:
+  mongodb:
+    image: mongo:4.4.7
+    Expose:
+      - "27017"
+
+  redis:
+    image: redis:6.2.6
+    Expose:
+      - "6379"
+
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build-auth
