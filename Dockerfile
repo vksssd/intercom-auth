@@ -11,13 +11,13 @@ COPY . .
 RUN go mod tidy
 
 # Build the Go app with static linking
-RUN go build -o auth ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o auth ./cmd/main.go
 
-# Use a minimal base image for the final build
-FROM alpine:latest
+# Use an Alpine image for the final build targeting arm64 architecture
+FROM arm64v8/alpine:latest
 
 # Install necessary CA certificates and compatibility libraries
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 apk --no-cache add ca-certificates libc6-compat
+RUN apk --no-cache add ca-certificates libc6-compat
 
 # Set the Current Working Directory inside the container
 WORKDIR /app

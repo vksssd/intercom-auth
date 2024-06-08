@@ -27,6 +27,7 @@ jobs:
             docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
             TAG=$(echo $CIRCLE_SHA1 | cut -c1-7)
             docker buildx create --use
+            # --platfrom defines for which platfrom it will run with ease
             docker buildx build --platform linux/arm64 -t vksssd/intercom-auth:$TAG .
             docker push vksssd/intercom-auth:$TAG
             docker tag vksssd/intercom-auth:$TAG vksssd/intercom-auth:latest
