@@ -6,7 +6,7 @@ import (
 )
 
 type AppConfig struct {
-	Server ServerConfig
+	Server ServerConfig 
 	Database DatabaseConfig
 	Redis RedisConfig
 	CSRF CSRFConfig
@@ -16,117 +16,132 @@ type AppConfig struct {
 }
 
 type ServerConfig struct {
-	HOST string
-	PORT string
+	MODE string   `mapstructure:"MODE_ENV"`
+	HOST string   `mapstructure:"HOST"`
+	PORT string	  `mapstructure:"PORT"`
+	APIVersion string `mapstructure:"API_VERSION"`
+	URL string `mapstructure:"URL"`
 }
 
 type DatabaseConfig struct {
-	Host string
-	Port string
-	User string
-	Password string
-	Database string
+	URL string `mapstructure:"MONGODB_URL"`
+	USER string  `mapstructure:"MONGODB_USER"`
+	PASSWORD string `mapstructure:"MONGODB_PASSWORD"`
+	Database string `mapstructure:"MONGODB_DATABASE"`
 	
-	PoolSize int
-	PoolSizeMultiplier int
+	PoolSize int  `mapstructure:"MONGODB_POOL_SIZE"`
+	// PoolSizeMultiplier int `mapstructure:"MONGODB_POOL_"`
 	
-	RetryAttempts int
-	RetryInterval int
+	RetryAttempts int `mapstructure:"MONGODB_RETRY_ATTEMPT"`
+	RetryInterval int `mapstructure:"MONGODB_RETRY_INTERVAL"`
 
-	MaxIdleConns int
-	MaxOpenConns int
+	MaxIdleConns int `mapstructure:"MONGODB_MAX_IDLE"`
+	MaxOpenConns int `mapstructure:"MONGODB_POOL_MAX_OPEN"`
 
-	DisableTLS bool
+	// DisableTLS bool
 
-	EnableLog bool
+	// EnableLog bool
 
-	EnableDebug bool
+	// EnableDebug bool
 
-	EnableMetrics bool
+	// EnableMetrics bool
 
 
 }
 
 
 type RedisConfig struct {
-	Host string
-	Port string
-	Password string
-	Database int
+	URL string `mapstructure:"REDIS_URL"`
+	// Port string
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	Database int  `mapstructure:"REDIS_DATABASE"`
 
-	PoolSize int
-	PoolSizeMultiplier int
+	PoolSize int `mapstructure:"REDIS_POOL_SIZE"`
+	// PoolSizeMultiplier int
 
-	RetryAttempts int
-	RetryInterval int
+	RetryAttempts int `mapstructure:"REDIS_RETRY_ATTEMPT"`
+	RetryInterval int `mapstructure:"REDIS_RETRY_INTERVAL"`
 
-	MaxIdleConns int
-	MaxOpenConns int
+	MaxIdleConns int `mapstructure:"REDIS_POOL_IDLE"`
+	MaxOpenConns int  `mapstructure:"REDIS_POOL_MAX"`
 
 
-	EnableLog bool
+	// EnableLog bool
 
-	EnableDebug bool
+	// EnableDebug bool
 }
 
 type CSRFConfig struct {
-	Secret string
-	Expire int
+	Secret string `mapstructure:"CSRF_SECRET"`
+	Expire int `mapstructure:"CSRF_EXPIRES_IN"`
 
+	Method string	`mapstructure:"CSRF_METHOD"`
 	
-	Header string
-	Path string
+	Header string `mapstructure:"CSRF_HEADER"`
+	Path string `mapstructure:"CSRF_COOKIE_PATH"`
 	
 }
 
 type JWTConfig struct {
-	Salt int
+	Salt string `mapstructure:"JWT_SALT"`
+	SaltRound int
 
-	Secret string
-	Expire int
+	Secret string `mapstructure:"JWT_SECRET"`
+	Expire int `mapstructure:"JWT_EXPIRE"`
 
 
-	RefreshSecret string
-	RefreshExpire int
+	RefreshSecret string `mapstructure:"JWT_REFRESH_SECRET"`
+	RefreshExpire int `mapstructure:"JWT_REFRESH_EXPIRE"`
 
-	Header string
-	Path string
+	Header string  `mapstructure:"JWT_HEADER"`
+	Path string `mapstructure:"JWT_COOKIE_PATH"`
+
+	Peeper string `mapstructure:"JWT_PEEPER"`
+
+	Issuer string `mapstructure:"JWT_ISSUER"`
+	Audiance string `mapstructure:"JWT_AUDIANCE"`
 
 }
 
 type RATEConfig struct {
-	Window int
+	Window int `mapstructure:"RATE_LIMIT_WINDOW"`
 
-	MaxLimit int
+	MaxLimit int `mapstructure:"RATE_LIMIT_MAX"`
 
-	DefaultLimit int
+	// DefaultLimit int `mapstructure:""`
 
-	Delay int
-	Message string
+	Delay int `mapstructure:"RATE_LIMIT_DELAY"`
+	Message string `mapstructure:"RATE_LIMIT_MESSAGE"`
 
-	Code int
+	Code int `mapstructure:"RATE_LIMIT_CODE"`
 
 }
 
-func Init()(*AppConfig, error){
-	 v := viper.New()
-	 v.SetConfigName("config")
-	 v.SetConfigType("env")
-	 v.AddConfigPath(".")
+func Hello()(int){
 
-	 err  := v.ReadInConfig()
-	 if err != nil {
-		 return nil, err
-	 }
-
-	 c:= &AppConfig{}
-	 if err=v.Unmarshal(c); err != nil {
-		 return nil, err
-	 }
-
-	 
-	 fmt.Println("Using config file: ", v.ConfigFileUsed())
-	 
-	 
-	 return c, nil
+	fmt.Println("hello world")
+	return 0
 }
+
+func ConfigInit()(*AppConfig, error){
+	v:=viper.New()
+	v.SetConfigName(".env")
+	v.SetConfigType("env")
+	v.AddConfigPath(".")
+
+	err := v.ReadInConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	c:= &AppConfig{}
+
+	if err = v.Unmarshal(c); err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Using config file: ", v.ConfigFileUsed())
+
+	return c, nil
+}
+
