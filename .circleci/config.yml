@@ -4,7 +4,7 @@ executors:
   docker-executor:
     docker:
       - image: cimg/go:1.22.4
-    working_directory: /go/src/github.com/vksssd/intercom/auth-service
+    working_directory: /go/src/github.com/vksssd/intercom-auth
 
 jobs:
   build-auth:
