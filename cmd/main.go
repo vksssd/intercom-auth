@@ -1,10 +1,13 @@
 package main
 
 import (
-	"fmt"
+	// "context"
+	// "fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
+    "github.com/joho/godotenv"
 
 	"github.com/gorilla/mux"
 	"github.com/vksssd/intercom-auth/config"
@@ -13,24 +16,18 @@ import (
 )
 
 func main() {
-	num:=config.Hello()
-	fmt.Println(num)
 
-
-	// Call ConfigInit
-	// cfg, err := config.Init()
-	// if err != nil {
-	// 	fmt.Println("Error initializing config:", err)
-	// 	return
-	// }
-
-	// fmt.Println(cfg)
-
-	cfg, err := config.ConfigInit()
-	fmt.Println(cfg,err)
+	_, err := config.ConfigInit()
+	// fmt.Println(cfg,err)
 
 	redis.Init()
-
+	//pingin redis
+	// log.Printf(redis.RedisClient.Ping(context.TODO()).Err().Error())
+	
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	r :=  mux.NewRouter()
 	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
@@ -38,11 +35,13 @@ func main() {
 	r.HandleFunc("/ping", handlers.HelloHandler)
 
 	server := &http.Server{
-		Handler: r,
-		Addr: "localhost:8080",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout: 15*time.Second,
-	}
+        Handler:      r,
+        Addr:         os.Getenv("URL"),
+        WriteTimeout: 15 * time.Second,
+        ReadTimeout:  15 * time.Second,
+    }
+
+    log.Printf("Server is listening on %s", server.Addr)
 
 	log.Fatal(server.ListenAndServe())
 	

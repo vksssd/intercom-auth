@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -27,32 +28,40 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-
 	err = redis.RedisClient.Set(ctx, user.Username, hashedPassword, 0).Err()
 	if err != nil {
-		http.Error(w, "Server error", http.StatusInternalServerError)
+		log.Println(err)
+		http.Error(w, "Redis Server error", http.StatusInternalServerError)
 		return
 	}
 
+	result,err := redis.RedisClient.Get(ctx, user.Username).Result()
+	
+	w.Write([]byte(result))
 	w.WriteHeader(http.StatusCreated)
 }
 
 
-func LoginHandler(w http.ResponseWriter, r *http.Request){
-
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user models.User
+	_ = json.NewDecoder(r.Body).Decode(&user)
 
-	_= json.NewDecoder(r.Body).Decode(&user)
-		
 	storedHash, err := redis.RedisClient.Get(ctx, user.Username).Result()
-		if err ==  nil || !utils.CompareHash(user.Password, storedHash){
-			http.Error(w, "Invalid Credintails", http.StatusUnauthorized)
-			return
-		}
-		
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unauthorized to login", http.StatusUnauthorized)
+		return
+	}
+
+	// Compare the provided password with the stored hash
+	if !utils.CompareHash(user.Password, storedHash) {
+		http.Error(w, "Unauthorized to login", http.StatusUnauthorized)
+		return
+	}
+
 	token, err := jwt.GenerateJWT(user.Username, user.Email)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
@@ -60,8 +69,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request){
 	}
 
 	w.Header().Set("Authorization", "Bearer "+token)
-
+	w.Write([]byte(token))
 }
+
 
 
 func HelloHandler(w http.ResponseWriter, r *http.Request) {
