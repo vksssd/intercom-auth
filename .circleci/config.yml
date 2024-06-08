@@ -4,7 +4,7 @@ executors:
   machine-executor:
     machine:
       image: ubuntu-2204:current
-    working_directory: /app
+    # working_directory: /app
 
 jobs:
   build-auth:
