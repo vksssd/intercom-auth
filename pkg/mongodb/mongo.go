@@ -285,25 +285,53 @@ func (m *MongoDB) FindPage(ctx context.Context, collectionName string, filter in
 			if page > 0 && limit > 0 {
 				findOptions.SetSkip(int64((page-1)*limit))
 				findOptions.SetLimit(int64(limit))
-				} 
+			} 
 				
 				collection := m.GetCollection(collectionName)
 				cursor, err := collection.Find(ctx, filter, findOptions)
 				if err != nil {
 					m.logger.Error("failed to find documents", zap.Error(err))
 					return fmt.Errorf("failed to find documents: %v",err)
-					}
-					defer cursor.Close(ctx)
+				}
+				defer cursor.Close(ctx)
 					
-					if err = cursor.All(ctx, result); err!= nil {
-						m.logger.Error("failed to decode documents", zap.Error(err))
-						return fmt.Errorf("failed to decode documents: %v",err)
-						}
-						m.logger.Info("documents found successfully", zap.Any("result", result))
-						return nil
-						})
-						})
-						}
+				if err = cursor.All(ctx, result); err!= nil {
+					m.logger.Error("failed to decode documents", zap.Error(err))
+					return fmt.Errorf("failed to decode documents: %v",err)
+				}
+			m.logger.Info("documents found successfully", zap.Any("result", result))
+			return nil
+		})
+	})
+}
+
+func (m *MongoDB) TextSearch(ctx context.Context, collectionName string, searchText string, page, limit int) ([]bson.M, error) {
+	filter := bson.M{"$text": bson.M{"$search": searchText}}
+	findOptions := options.Find()
+
+	if page > 0 && limit > 0 {
+		findOptions.SetSkip(int64((page - 1) * limit))
+		findOptions.SetLimit(int64(limit))
+	}
+
+	collection := m.GetCollection(collectionName)
+	cursor, err := collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		m.logger.Error("failed to find documents", zap.Error(err))
+		return nil, fmt.Errorf("failed to find documents: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var results []bson.M
+	if err := cursor.All(ctx, &results); err != nil {
+		m.logger.Error("failed to decode documents", zap.Error(err))
+		return nil, fmt.Errorf("failed to decode documents: %v", err)
+	}
+
+	m.logger.Info("documents found successfully", zap.Any("result", results))
+	return results, nil
+}
+
 
 func (m *MongoDB)Aggregate(ctx context.Context, collectionName string, pipeline interface{}, result interface{}) error {
 	return m.withRetry(func() error {	
