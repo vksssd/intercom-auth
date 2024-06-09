@@ -3,15 +3,16 @@ package redis
 import (
 	// "os"
 
-
 	"github.com/go-redis/redis/v8"
+	"github.com/vksssd/intercom-auth/config"
 )
 
 var RedisClient *redis.Client
 
-func Init() {
+func Init(cfg *config.RedisConfig) {
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: "localhost:50713",
+		Addr: cfg.URL,
+		// Password: cfg.Password,
 		// Database: os.Getenv("REDIS_DATABASE")
 	})
 }

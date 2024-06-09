@@ -1,13 +1,12 @@
 package main
 
 import (
-	// "context"
-	// "fmt"
+	"context"
+	"fmt"
 	"log"
 	"net/http"
-	"os"
+
 	"time"
-    "github.com/joho/godotenv"
 
 	"github.com/gorilla/mux"
 	"github.com/vksssd/intercom-auth/config"
@@ -17,32 +16,34 @@ import (
 
 func main() {
 
-	_, err := config.ConfigInit()
-	// fmt.Println(cfg,err)
-
-	redis.Init()
-	//pingin redis
-	// log.Printf(redis.RedisClient.Ping(context.TODO()).Err().Error())
-	
-	err = godotenv.Load()
+	cfg, err := config.ConfigInit()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Error loading config: %v", err)
 	}
+
+	//pingin redis
+	redis.Init(&cfg.Redis)
+	pong, err := redis.RedisClient.Ping(context.TODO()).Result()
+	if err != nil {
+		log.Printf(err.Error())
+	}	
+	log.Println(pong)
 
 	r :=  mux.NewRouter()
 	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
 	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
+	r.HandleFunc("/refresh", handlers.RefreshTokenHandler).Methods("GET")
 	r.HandleFunc("/ping", handlers.HelloHandler)
-
 	server := &http.Server{
-        Handler:      r,
-        Addr:         os.Getenv("URL"),
-        WriteTimeout: 15 * time.Second,
-        ReadTimeout:  15 * time.Second,
-    }
+		Handler:      r,
+		Addr:         cfg.Server.URL,
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
 
-    log.Printf("Server is listening on %s", server.Addr)
-
-	log.Fatal(server.ListenAndServe())
+	fmt.Println("Ping server is listening on port 8000...")
+	if err := server.ListenAndServe(); err != nil {
+		fmt.Println("Server error:", err)
+	}
 	
 }

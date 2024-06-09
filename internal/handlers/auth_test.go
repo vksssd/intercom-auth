@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vksssd/intercom-auth/config"
 	"github.com/vksssd/intercom-auth/internal/handlers"
 	"github.com/vksssd/intercom-auth/internal/models"
 	"github.com/vksssd/intercom-auth/internal/utils"
@@ -18,10 +19,12 @@ import (
 
 func init() {
 	// Initialize the Redis client for testing purposes
-	redis.Init()
+	cfg,_:= config.ConfigInit()
+	redis.Init(&cfg.Redis)
 }
 
 func TestRegisterHandler(t *testing.T) {
+	
 	user := models.User{
 		Username: "testuser",
 		Password: "password123",

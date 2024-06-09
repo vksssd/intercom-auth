@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -12,10 +13,11 @@ type AppConfig struct {
 	CSRF CSRFConfig
 	JWT JWTConfig
 	RATE RATEConfig
-	// Session SessionConfig
+	Session SessionConfig
 }
 
 type ServerConfig struct {
+	
 	MODE string   `mapstructure:"MODE_ENV"`
 	HOST string   `mapstructure:"HOST"`
 	PORT string	  `mapstructure:"PORT"`
@@ -103,6 +105,10 @@ type JWTConfig struct {
 
 }
 
+type SessionConfig struct {
+	Key string `mapstructure:SESSION_KEY`
+}
+
 type RATEConfig struct {
 	Window int `mapstructure:"RATE_LIMIT_WINDOW"`
 
@@ -117,6 +123,7 @@ type RATEConfig struct {
 
 }
 
+
 func Hello()(int){
 
 	fmt.Println("hello world")
@@ -124,23 +131,31 @@ func Hello()(int){
 }
 
 func ConfigInit()(*AppConfig, error){
-	v:=viper.New()
-	v.SetConfigName(".env")
-	v.SetConfigType("env")
-	v.AddConfigPath(".")
 
+
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
+
+	v:=viper.New()
+	v.SetConfigName("config")
+	v.SetConfigType("yml")
+	v.AddConfigPath("./config")
+	// v.AutomaticEnv()
+	
 	err := v.ReadInConfig()
 	if err != nil {
 		return nil, err
 	}
 
+	v.SetEnvPrefix("")
+
 	c:= &AppConfig{}
 
 	if err = v.Unmarshal(c); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
-
-	fmt.Println("Using config file: ", v.ConfigFileUsed())
 
 	return c, nil
 }

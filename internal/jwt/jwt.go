@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -22,4 +23,20 @@ func ValidateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
+}
+
+func Parse(tokenString string)(jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		// http.Error(w, "Forbidden")
+		return nil, fmt.Errorf("forbidden: token not valid")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("forbidden: claim not valid")
+	}
+	return claims, nil
 }
