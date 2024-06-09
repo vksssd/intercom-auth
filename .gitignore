@@ -2,3 +2,4 @@
 /nginx
 /nginx/*
 .secret
+/config/config.yml
