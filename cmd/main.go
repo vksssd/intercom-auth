@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vksssd/intercom-auth/config"
 	"github.com/vksssd/intercom-auth/internal/handlers"
+	"github.com/vksssd/intercom-auth/internal/session"
 	"github.com/vksssd/intercom-auth/pkg/redis"
 )
 
@@ -20,6 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
+	session.Configure("auth-session", 30*60, true, []byte("your-32-byte-secret-key"))
 
 	//pingin redis
 	redis.Init(&cfg.Redis)
@@ -32,7 +34,7 @@ func main() {
 	r :=  mux.NewRouter()
 	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
 	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
-	r.HandleFunc("/refresh", handlers.RefreshTokenHandler).Methods("GET")
+	r.HandleFunc("/refresh", handlers.RefreshTokenHandler).Methods("POST")
 	r.HandleFunc("/ping", handlers.HelloHandler)
 	server := &http.Server{
 		Handler:      r,

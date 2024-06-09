@@ -14,6 +14,7 @@ var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 func GenerateJWT(username, email string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
+		"email":email,
 		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
 	return token.SignedString(jwtSecret)
@@ -26,12 +27,12 @@ func ValidateJWT(tokenString string) (*jwt.Token, error) {
 }
 
 func Parse(tokenString string)(jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
-	})
+	// log.Println(tokenString)
+	token, err := ValidateJWT(tokenString)
 	if err != nil || !token.Valid {
 		// http.Error(w, "Forbidden")
-		return nil, fmt.Errorf("forbidden: token not valid")
+
+		return nil, fmt.Errorf("forbidden: token not valid : %v\n%v", err,token)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
