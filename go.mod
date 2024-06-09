@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/csrf v1.7.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.2.2
+	github.com/sony/gobreaker v1.0.0
 	github.com/spf13/viper v1.19.0
 	go.mongodb.org/mongo-driver v1.15.0
 	go.uber.org/zap v1.21.0

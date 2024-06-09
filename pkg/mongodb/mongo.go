@@ -7,16 +7,22 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/sony/gobreaker"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"go.uber.org/zap"
 )
+
 
 type MongoDB struct {
 	client *mongo.Client
 	database *mongo.Database
 	// collection *mongo.Collection
 	logger 	*zap.Logger
+	cb   *gobreaker.CircuitBreaker
 	mu sync.RWMutex
 
 }
@@ -25,31 +31,71 @@ type MongoPool struct {
 	clients []*MongoDB
 	logger *zap.Logger
 	mu sync.Mutex
+	uri        string
+	dbName     string
+	poolSize   int
+	healthStop chan struct{}
 }
+
+type IdempotencyRecord struct {
+	IdempotencyKey string      `bson:"idempotency_key"`
+	Result         interface{} `bson:"result"`
+	Timestamp      time.Time   `bson:"timestamp"`
+}
+
 
 //create a new mongodb instance
 func NewMongoDB(uri, dbName/*, collectionName */string, poolSize int, logger *zap.Logger)(*MongoPool, error){
 	pool := &MongoPool{
 		clients : make([]*MongoDB, 0, poolSize),
 		logger: logger,
+		uri:uri,
+		dbName: dbName,
+		poolSize: poolSize,
+		healthStop: make(chan struct{}),
 	}
 
-	for i := 0; i < poolSize; i++ {
-		client, err := newMongoClient(uri, dbName/*, collectionName*/,logger)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to create MongoDB client: %v",err)
-		}
-		pool.clients = append(pool.clients, client)
+	if err := pool.initPool(); err!= nil {
+		return nil, err
 	}
+
+	go pool.healthCheck()
 
 	return pool, nil
 
 }
 
+
+func (p *MongoPool)initPool() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// for i := 0; i < poolSize; i++ {
+	// 	client, err := newMongoClient(uri, dbName/*, collectionName*/,logger)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("Failed to create MongoDB client: %v",err)
+	// 	}
+	// 	pool.clients = append(pool.clients, client)
+	// }
+
+	for i:= len(p.clients); i < p.poolSize; i++ {
+		client, err := newMongoClient(p.uri, p.dbName/*, collectionName*/,p.logger)
+			if err != nil {
+				return fmt.Errorf("Failed to create MongoDB client: %v",err)
+			}
+			p.clients = append(p.clients, client)
+	}
+	return nil
+}
+
+
+
 func newMongoClient(uri, dbName/*, collectionName */string , logger *zap.Logger)(*MongoDB, error){
 	clientOptions := options.Client().ApplyURI(uri).
 	SetMaxPoolSize(100).
 	SetMinPoolSize(10).
+	// SetReplicaSet("rs0").
+    // SetReadPreference(readpref.SecondaryPreferred()).
 	SetConnectTimeout(10 * time.Second).
 	SetServerSelectionTimeout(10*time.Second).
 	SetSocketTimeout(10*time.Second)
@@ -62,11 +108,23 @@ func newMongoClient(uri, dbName/*, collectionName */string , logger *zap.Logger)
 	database := client.Database(dbName)
 	// collection := database.Collection(collectionName)
 
+
+	settings := gobreaker.Settings{
+		Name: "MongoDB",
+		Timeout: 30*time.Second,
+		ReadyToTrip: func(counts gobreaker.Counts) bool {
+			return counts.ConsecutiveFailures > 5
+		},
+	}
+
+	cb := gobreaker.NewCircuitBreaker(settings)
+
 	return &MongoDB{
 		client: client,
 		database: database,
 		// collection: collection,
 		logger: logger,
+		cb: cb,
 	}, nil
 
 }
@@ -83,18 +141,56 @@ func (m *MongoDB) withRetry(operation func() error) error{
 	return backoff.Retry(operationWithRetry, expBackoff)
 }
 
-func (p *MongoPool) GetClient()(*MongoDB, error){
+func (m *MongoDB) withCircuitBreaker(operation func () error) error {
+	_, err := m.cb.Execute(func () (interface{}, error) {
+		return nil, operation()
+	})
+	if err!=nil {
+		m.logger.Error("operation failed due to circuit breaker", zap.Error(err))
+	}
+	return nil
+}
+
+func (p *MongoPool) GetClient(ctx context.Context)(*MongoDB, error){
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	
 	if len(p.clients) == 0 {
-		p.logger.Error("no clients available in pool")
-		return nil, fmt.Errorf("no available clients in the pool")
+		p.logger.Warn("No aclient available in pool, atttempting to reinitialize pool")
+		if err := p.initPool(); err != nil {
+			return nil, fmt.Errorf("failed to reinitalize pool: %v",err)
+		}
+		if len(p.clients) == 0 {
+			return nil, fmt.Errorf("no available clients in the pool after reinitialization")
+		}
 	}
+
 
 	client := p.clients[0]
 	p.clients = p.clients[1:]
 
+	//ping client to ensure it's alice
+	if err := client.client.Ping(ctx, nil); err != nil {
+		p.logger.Error("MongoDB Ping failed", zap.Error(err))
+		if err := p.Close(ctx); err != nil {
+			client.logger.Error("Failed to disconnect from MongoDB", zap.Error(err))
+		}
+		return nil, fmt.Errorf("MongoDB client is not available")
+	}
+
 	return client, nil
+}
+
+func (p *MongoPool) ReleaseClient(client *MongoDB) {
+	for i, c := range p.clients {
+		if c == client {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+		
+			// Return the client to the pool
+			p.clients = append(p.clients[:i], p.clients[i+1:]...)
+		}
+	}
 }
 
 // func (m *MongoDB) CreateIndex(ctx context.Context)error{
@@ -127,16 +223,11 @@ func (m *MongoDB)GetCollection(collectionName string)*mongo.Collection{
 	return m.database.Collection(collectionName)
 }
 
-func (p *MongoPool) ReleaseClient(client *MongoDB){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.clients = append(p.clients, client)
-}
 
 
 func (m *MongoDB) InsertOne(ctx context.Context,collectionName string, document interface{})(result *mongo.InsertOneResult, err error){
 	err = m.withRetry(func() error {
+		return m.withCircuitBreaker(func() error {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
@@ -147,6 +238,7 @@ func (m *MongoDB) InsertOne(ctx context.Context,collectionName string, document 
 		}
 		return nil
 	})
+})
 
 	if err != nil {
 		return nil, err
@@ -171,6 +263,7 @@ func (m *MongoDB)InsertOneAsync(ctx context.Context,collectionName string, docum
 
 func (m *MongoDB)Aggregate(ctx context.Context, collectionName string, pipeline interface{}, result interface{}) error {
 	return m.withRetry(func() error {	
+		return m.withCircuitBreaker(func() error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -191,12 +284,16 @@ func (m *MongoDB)Aggregate(ctx context.Context, collectionName string, pipeline 
 	m.logger.Info("aggregation successful", zap.Any("result", result))
 	return nil
 	})
+
+	})
+
 }
 
-func (m *MongoDB) Find(ctx context.Context, collectionName string, filter interface{}, result interface{}, page, limit int) (error){
+func (m *MongoDB) FindPage(ctx context.Context, collectionName string, filter interface{}, result interface{}, page, limit int) (error){
 	return m.withRetry(func() error {
+		return m.withCircuitBreaker(func() error {
 	
-		m.mu.Unlock()
+	m.mu.Unlock()
 	defer m.mu.Unlock()
 
 	findOptions := options.Find()
@@ -219,12 +316,67 @@ func (m *MongoDB) Find(ctx context.Context, collectionName string, filter interf
 	}
 	m.logger.Info("documents found successfully", zap.Any("result", result))
 	return nil
-	
+})
 })
 }
 
+func (m *MongoDB) PerfomIdempotentTransaction(ctx context.Context, idepotencyKey string, operation func()(interface{}, error))(interface{}, error){
+	idempotencyCollection := m.database.Collection("idempotency_key")
+	
+	sessionOptions := options.Session().
+		SetDefaultReadConcern(readconcern.Majority()).
+		SetDefaultWriteConcern(writeconcern.New(writeconcern.WMajority()))
+	
+		session, err := m.client.StartSession(sessionOptions)
+	if err !=  nil {
+		m.logger.Error("Failed to start session", zap.Error(err))
+		return nil, err
+	}
+	defer session.EndSession(ctx)
+
+
+	var result interface{}
+	err = mongo.WithSession(ctx, session, func(sessCtx mongo.SessionContext)error{
+		var record IdempotencyRecord
+		err := idempotencyCollection.FindOne(sessCtx, bson.M{"idempotency_key":idepotencyKey}).Decode(&record)
+		if err != nil {
+			result = record.Result
+			return /*record.Result, */nil
+		}else if err != mongo.ErrNoDocuments{
+			return fmt.Errorf("failed to check idempotency key: %v", err)
+		}
+
+		res, err := operation()
+		if err != nil {
+			return err
+		}
+
+		_, err = idempotencyCollection.InsertOne(sessCtx, IdempotencyRecord{
+			IdempotencyKey: idepotencyKey,
+			Result: res,
+			Timestamp: time.Now(),
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to store idempotency key: %v", err)
+		}
+
+		result = res
+		return nil
+
+		// 	}, options.Transaction().SetWriteConcern(mongo.WriteConcernMajority()))
+})
+
+	return result, nil
+}	
+
+
+
 //disconnect mongodb connection
 func (p *MongoPool) Close(ctx context.Context) error {
+	//stop health check first as it reinitiates the new client
+	close(p.healthStop)
+
 	for _, client := range p.clients{
 		if err := client.client.Disconnect(ctx); err != nil {
 			p.logger.Error("failed to disconnect MongoDB client", zap.Error(err))
@@ -233,4 +385,36 @@ func (p *MongoPool) Close(ctx context.Context) error {
 		return nil
 	}
 	return nil
+}
+
+
+func (p *MongoPool) healthCheck() {
+	ticker := time.NewTicker(1*time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <- ticker.C:
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			for _, client := range p.clients {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				if err := client.client.Ping(ctx, nil); err!= nil {
+					p.logger.Warn("Client failed health check, removing from pool", zap.Error(err))
+					if err := client.client.Disconnect(ctx); err != nil {
+						client.logger.Error("Failed to disconnect from MongoDB", zap.Error(err))
+					}
+					// Remove the failed client
+					p.ReleaseClient(client)
+				}
+
+			}
+			p.mu.Unlock()
+		case <- p.healthStop:
+			return
+		}
+	}
+
 }
