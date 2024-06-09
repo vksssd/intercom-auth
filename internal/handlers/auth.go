@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/csrf"
 	"github.com/vksssd/intercom-auth/internal/jwt"
 	"github.com/vksssd/intercom-auth/internal/models"
 	"github.com/vksssd/intercom-auth/internal/session"
@@ -144,6 +145,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Authorization","Bearer "+token)
 	w.Header().Set("auth_token",token)
 	w.Header().Set("refresh_token",refreshtoken)
+	
+	csrfToken := csrf.Token(r)
+	w.Header().Set("X-CSRF-Token", csrfToken)
 	
 	w.Write([]byte(token+"\n"+user.Username+"\n"+email))
 }

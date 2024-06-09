@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/csrf"
 	"github.com/vksssd/intercom-auth/internal/jwt"
 	"github.com/vksssd/intercom-auth/internal/session"
 	"github.com/vksssd/intercom-auth/internal/utils"
@@ -56,6 +57,8 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	csrfToken := csrf.Token(r)
+	w.Header().Set("X-CSRF-Token", csrfToken)
 	w.Header().Set("Authorization", "Bearer "+newTokenString)
 	w.WriteHeader(http.StatusOK)
 }

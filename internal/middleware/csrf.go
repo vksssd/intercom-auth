@@ -8,10 +8,12 @@ import (
 
 func CSRFMiddleware(cfg *config.CSRFConfig)func(http.Handler) http.Handler {
 	return csrf.Protect(
-		[]byte(cfg.CSRF_SECRET),
+		[]byte(cfg.Secret),
 		csrf.Secure(true),
 		csrf.HttpOnly(true),
 		csrf.Path("/"),
-		csrf.MaxAge(3600),
+		csrf.MaxAge(cfg.Expire),
+		// csrf.SameSite(http.SameSite),
+
 	)
 }

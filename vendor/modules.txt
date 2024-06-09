@@ -20,6 +20,9 @@ github.com/go-redis/redis/v8/internal/pool
 github.com/go-redis/redis/v8/internal/proto
 github.com/go-redis/redis/v8/internal/rand
 github.com/go-redis/redis/v8/internal/util
+# github.com/gorilla/csrf v1.7.2
+## explicit; go 1.20
+github.com/gorilla/csrf
 # github.com/gorilla/mux v1.8.1
 ## explicit; go 1.20
 github.com/gorilla/mux
