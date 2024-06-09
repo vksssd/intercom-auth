@@ -106,7 +106,7 @@ type JWTConfig struct {
 }
 
 type SessionConfig struct {
-	Key string `mapstructure:SESSION_KEY`
+	Secret string `mapstructure:SESSION_KEY`
 }
 
 type RATEConfig struct {
