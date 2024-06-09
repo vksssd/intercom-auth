@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	"github.com/gorilla/csrf"
+	// "github.com/gorilla/csrf"
 	"github.com/vksssd/intercom-auth/config"
 	service "github.com/vksssd/intercom-auth/internal/CSRF"
 )
@@ -40,7 +40,7 @@ func CSRFMiddleware(cfg *config.CSRFConfig, csrfService *service.CSRF)func(http.
 
 				w.Header().Set(cfg.Header, newToken)
 				next.ServeHTTP(w,r)
-				
+
 			})
 		}
 	

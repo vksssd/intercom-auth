@@ -22,7 +22,7 @@ func SetCookiee(w http.ResponseWriter, name, value string){
 		Name: name, 
 		Value: value,
 		Path: "/",
-		Expires: expirationTime,
+		// Expires: expirationTime,
 		HttpOnly: true,  //inaccessbile to JS
 		Secure: true,
 		SameSite: http.SameSiteStrictMode,

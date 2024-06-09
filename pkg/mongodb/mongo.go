@@ -156,7 +156,7 @@ func (m *MongoDB) InsertOne(ctx context.Context,collectionName string, document 
 	return result, nil
 }
 
-func (m *MongoDB)InsertOneAsync(ctx context.Context,collectionName string, document interface{}m resultChan chan<- *mongo.InsertOneResult, errChan chan<- error ){
+func (m *MongoDB)InsertOneAsync(ctx context.Context,collectionName string, document interface{}, resultChan chan<- *mongo.InsertOneResult, errChan chan<- error ){
 	go func() {
 		result,err := m.InsertOne(ctx, collectionName, document)
 		if err != nil {
@@ -164,7 +164,7 @@ func (m *MongoDB)InsertOneAsync(ctx context.Context,collectionName string, docum
 		}else {
 			resultChan <- result
 		}
-	}
+	}()
 }
 
 // func (p *MongoPool) Find(ctx context.Context, doc interface{}, result interface{})
