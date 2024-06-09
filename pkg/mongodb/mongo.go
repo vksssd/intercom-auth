@@ -23,6 +23,7 @@ type MongoDB struct {
 	// collection *mongo.Collection
 	logger 	*zap.Logger
 	cb   *gobreaker.CircuitBreaker
+	clientConfig *options.ClientOptions
 	mu sync.RWMutex
 
 }
@@ -102,18 +103,30 @@ func (p *MongoPool)initPool() error {
 
 
 func newMongoClient(uri, dbName/*, collectionName */string , logger *zap.Logger)(*MongoDB, error){
-	clientOptions := options.Client().ApplyURI(uri).
+	clientConfig := options.Client().ApplyURI(uri).
 	SetMaxPoolSize(100).
 	SetMinPoolSize(10).
 	// SetReplicaSet("rs0").
     // SetReadPreference(readpref.SecondaryPreferred()).
 	SetConnectTimeout(10 * time.Second).
 	SetServerSelectionTimeout(10*time.Second).
-	SetSocketTimeout(10*time.Second)
+	SetSocketTimeout(10*time.Second).
+	SetRetryWrites(true).
+	SetRetryReads(true).
+	// SetReadConcern(readconcern.New(readconcern.RMa))
+	SetWriteConcern(writeconcern.New(writeconcern.WMajority()))
 
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+	//enable compression options
+	
+	clientConfig.SetCompressors([]string{"zlib"})
+
+	client, err := mongo.Connect(context.Background(), clientConfig)
 	if err != nil{
 		return nil, fmt.Errorf("Failed to connect to MongoDB: %v",err)
+	}
+
+	if err := client.Ping(context.Background(), nil); err != nil {
+		return nil, fmt.Errorf("failed to ping MongoDB: %v", err)
 	}
 
 	database := client.Database(dbName)
@@ -135,6 +148,7 @@ func newMongoClient(uri, dbName/*, collectionName */string , logger *zap.Logger)
 		database: database,
 		// collection: collection,
 		logger: logger,
+		clientConfig: clientConfig,
 		cb: cb,
 	}, nil
 
