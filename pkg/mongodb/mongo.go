@@ -34,7 +34,13 @@ type MongoPool struct {
 	uri        string
 	dbName     string
 	poolSize   int
+	maxPoolSize int
+	minPoolSize int
+	activeClients int
+	scaleUpThreshold float64
+	scaleDownThreshold float64
 	healthStop chan struct{}
+	scaleStop chan struct{}
 }
 
 type IdempotencyRecord struct {
@@ -52,6 +58,9 @@ func NewMongoDB(uri, dbName/*, collectionName */string, poolSize int, logger *za
 		uri:uri,
 		dbName: dbName,
 		poolSize: poolSize,
+		// maxPoolSize: max,
+		// take those value from paramete/arguments
+		// assign rest the value here and use go routine to call the dynamic scalemethod 
 		healthStop: make(chan struct{}),
 	}
 
@@ -60,6 +69,8 @@ func NewMongoDB(uri, dbName/*, collectionName */string, poolSize int, logger *za
 	}
 
 	go pool.healthCheck()
+
+	// go pool.dynamicScaling()
 
 	return pool, nil
 
@@ -177,7 +188,7 @@ func (p *MongoPool) GetClient(ctx context.Context)(*MongoDB, error){
 		}
 		return nil, fmt.Errorf("MongoDB client is not available")
 	}
-
+	// p.activeClients++
 	return client, nil
 }
 
@@ -189,6 +200,7 @@ func (p *MongoPool) ReleaseClient(client *MongoDB) {
 		
 			// Return the client to the pool
 			p.clients = append(p.clients[:i], p.clients[i+1:]...)
+			// p.activeClients--
 		}
 	}
 }
@@ -261,6 +273,38 @@ func (m *MongoDB)InsertOneAsync(ctx context.Context,collectionName string, docum
 
 // func (p *MongoPool) Find(ctx context.Context, doc interface{}, result interface{})
 
+
+func (m *MongoDB) FindPage(ctx context.Context, collectionName string, filter interface{}, result interface{}, page, limit int) (error){
+	return m.withRetry(func() error {
+		return m.withCircuitBreaker(func() error {
+			
+			m.mu.Unlock()
+			defer m.mu.Unlock()
+			
+			findOptions := options.Find()
+			if page > 0 && limit > 0 {
+				findOptions.SetSkip(int64((page-1)*limit))
+				findOptions.SetLimit(int64(limit))
+				} 
+				
+				collection := m.GetCollection(collectionName)
+				cursor, err := collection.Find(ctx, filter, findOptions)
+				if err != nil {
+					m.logger.Error("failed to find documents", zap.Error(err))
+					return fmt.Errorf("failed to find documents: %v",err)
+					}
+					defer cursor.Close(ctx)
+					
+					if err = cursor.All(ctx, result); err!= nil {
+						m.logger.Error("failed to decode documents", zap.Error(err))
+						return fmt.Errorf("failed to decode documents: %v",err)
+						}
+						m.logger.Info("documents found successfully", zap.Any("result", result))
+						return nil
+						})
+						})
+						}
+
 func (m *MongoDB)Aggregate(ctx context.Context, collectionName string, pipeline interface{}, result interface{}) error {
 	return m.withRetry(func() error {	
 		return m.withCircuitBreaker(func() error {
@@ -287,37 +331,6 @@ func (m *MongoDB)Aggregate(ctx context.Context, collectionName string, pipeline 
 
 	})
 
-}
-
-func (m *MongoDB) FindPage(ctx context.Context, collectionName string, filter interface{}, result interface{}, page, limit int) (error){
-	return m.withRetry(func() error {
-		return m.withCircuitBreaker(func() error {
-	
-	m.mu.Unlock()
-	defer m.mu.Unlock()
-
-	findOptions := options.Find()
-	if page > 0 && limit > 0 {
-		findOptions.SetSkip(int64((page-1)*limit))
-		findOptions.SetLimit(int64(limit))
-	} 
-	
-	collection := m.GetCollection(collectionName)
-	cursor, err := collection.Find(ctx, filter, findOptions)
-	if err != nil {
-		m.logger.Error("failed to find documents", zap.Error(err))
-		return fmt.Errorf("failed to find documents: %v",err)
-	}
-	defer cursor.Close(ctx)
-
-	if err = cursor.All(ctx, result); err!= nil {
-		m.logger.Error("failed to decode documents", zap.Error(err))
-		return fmt.Errorf("failed to decode documents: %v",err)
-	}
-	m.logger.Info("documents found successfully", zap.Any("result", result))
-	return nil
-})
-})
 }
 
 func (m *MongoDB) PerfomIdempotentTransaction(ctx context.Context, idepotencyKey string, operation func()(interface{}, error))(interface{}, error){
@@ -376,6 +389,7 @@ func (m *MongoDB) PerfomIdempotentTransaction(ctx context.Context, idepotencyKey
 func (p *MongoPool) Close(ctx context.Context) error {
 	//stop health check first as it reinitiates the new client
 	close(p.healthStop)
+	close(p.scaleStop)
 
 	for _, client := range p.clients{
 		if err := client.client.Disconnect(ctx); err != nil {
@@ -414,6 +428,46 @@ func (p *MongoPool) healthCheck() {
 			p.mu.Unlock()
 		case <- p.healthStop:
 			return
+		}
+	}
+
+}
+
+func(p *MongoPool) dynamicScaling() {
+	ticker := time.NewTicker(30 *time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <- ticker.C:
+			p.mu.Lock()
+			defer p.mu.Unlock()
+
+			usageRatio := float64(p.activeClients)/float64(len(p.clients))
+			if usageRatio > p.scaleUpThreshold && len(p.clients) < p.maxPoolSize {
+				//Scale up
+				client, err := newMongoClient(p.uri, p.dbName, p.logger)
+				if err != nil {
+					p.logger.Error("Failed to scale up MongoDB client", zap.Error(err))
+				}else {
+					p.clients = append(p.clients, client)
+					p.logger.Info("Scaled up MongoDB Pool", zap.Int("newPoolSize", len(p.clients)))
+				}			
+			} else if usageRatio < p.scaleDownThreshold && len(p.clients) > p.minPoolSize {
+				//Scale down
+				client := p.clients[len(p.clients)-1]
+				if err := client.client.Disconnect(context.Background()); err != nil {
+					client.logger.Error("Failed to disconnect client during scale down", zap.Error(err))
+				}else {
+					p.clients = p.clients[:len(p.clients)-1]
+					p.logger.Info("Scaled down MongoDB pool", zap.Int("newPoolSize", len(p.clients)))
+				}
+			}
+
+			p.mu.Unlock()
+		case<- p.scaleStop:
+			return 
+
 		}
 	}
 
