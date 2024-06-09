@@ -157,6 +157,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("auth_token",token)
 	w.Header().Set("refresh_token",refreshtoken)
 
+	// csrfToken := csrf.Token(r)
 	w.Header().Set("X-CSRF-Token", csrfToken)
 	
 	w.Write([]byte(token+"\n"+user.Username+"\n"+email))
