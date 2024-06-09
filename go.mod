@@ -3,6 +3,7 @@ module github.com/vksssd/intercom-auth
 go 1.22.4
 
 require (
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/gorilla/csrf v1.7.2
@@ -10,6 +11,7 @@ require (
 	github.com/gorilla/sessions v1.2.2
 	github.com/spf13/viper v1.19.0
 	go.mongodb.org/mongo-driver v1.15.0
+	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.24.0
 )
 

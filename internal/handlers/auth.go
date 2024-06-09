@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/csrf"
 	"github.com/vksssd/intercom-auth/internal/jwt"
 	CSRF "github.com/vksssd/intercom-auth/internal/CSRF"
 	"github.com/vksssd/intercom-auth/internal/models"
