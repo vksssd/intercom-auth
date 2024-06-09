@@ -58,6 +58,7 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	csrfToken := csrf.Token(r)
+	//try using from config
 	w.Header().Set("X-CSRF-Token", csrfToken)
 	w.Header().Set("Authorization", "Bearer "+newTokenString)
 	w.WriteHeader(http.StatusOK)
