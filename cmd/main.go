@@ -10,7 +10,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vksssd/intercom-auth/config"
+	csrf "github.com/vksssd/intercom-auth/internal/CSRF"
 	"github.com/vksssd/intercom-auth/internal/handlers"
+	"github.com/vksssd/intercom-auth/internal/jwt"
 	"github.com/vksssd/intercom-auth/internal/session"
 	"github.com/vksssd/intercom-auth/pkg/redis"
 )
@@ -21,7 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
-	session.Configure("auth-session", 30*60, true, []byte("your-32-byte-secret-key"))
 
 	//pingin redis
 	redis.Init(&cfg.Redis)
@@ -30,6 +31,15 @@ func main() {
 		log.Printf(err.Error())
 	}	
 	log.Println(pong)
+
+	session, err := session.NewSessionService(*redis.RedisClient, cfg.Session)
+	if err != nil {
+		log.Println("session not generated")
+	}
+	jwt := jwt.NewJWTService(&cfg.JWT)
+	csrf := csrf.NewCSRF(redis.RedisClient,context.TODO())
+	// session.Configure("auth-session", 30*60, true, []byte("your-32-byte-secret-key"))
+	handlers:= handlers.NewAuthHandler(jwt,csrf,redis.RedisClient,session,context.TODO())
 
 	r :=  mux.NewRouter()
 	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")

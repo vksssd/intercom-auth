@@ -1,26 +1,18 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/vksssd/intercom-auth/internal/jwt"
-	CSRF "github.com/vksssd/intercom-auth/internal/CSRF"
 	"github.com/vksssd/intercom-auth/internal/models"
-	"github.com/vksssd/intercom-auth/internal/session"
 	"github.com/vksssd/intercom-auth/internal/utils"
-	"github.com/vksssd/intercom-auth/pkg/redis"
 )
 
 
-func RegisterHandler(w http.ResponseWriter, r *http.Request){
+func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request){
 	
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err!=nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -45,7 +37,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request){
 	// }
 
 	// Check if the username already exists in Redis
-	exists, err := redis.RedisClient.Exists(ctx, user.Username).Result()
+	exists, err := h.RedisClient.Exists(h.Ctx, user.Username).Result()
 	if err != nil {
 		http.Error(w, "Redis server error", http.StatusInternalServerError)
 		return
@@ -57,23 +49,23 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request){
 	}
 
 
-	err = redis.RedisClient.HSet(ctx, user.Username, "username", user.Username, "email", user.Email, "password", hashedPassword).Err()
+	err = h.RedisClient.HSet(h.Ctx, user.Username, "username", user.Username, "email", user.Email, "password", hashedPassword).Err()
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Redis Server error", http.StatusInternalServerError)
 		return
 	}
 
-	result,err := redis.RedisClient.HGetAll(ctx, user.Username).Result()
+	result,err := h.RedisClient.HGetAll(h.Ctx, user.Username).Result()
 	
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(result["username"]))
 }
 
 
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+func (h *AuthHandler)LoginHandler(w http.ResponseWriter, r *http.Request) {
+	// ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// defer cancel()
 
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -86,7 +78,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	storedUserData, err := redis.RedisClient.HGetAll(ctx, user.Username).Result()
+	storedUserData, err := h.RedisClient.HGetAll(h.Ctx, user.Username).Result()
 	if err != nil || len(storedUserData) == 0{
 		log.Println(err)
 		http.Error(w, "Unauthorized to login", http.StatusUnauthorized)
@@ -102,19 +94,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	email := storedUserData["email"]
-	token, err := jwt.GenerateJWT(user.Username, email)
+	token, err := h.JWTService.GenerateJWT(user.Username, email)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 
-	refreshtoken, err := jwt.GenerateJWT(user.Username, email)
+	refreshtoken, err := h.JWTService.GenerateJWT(user.Username, email)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 
-	sess, err := session.Get(r, "auth-session")
+	sess, err := h.SessionService.Get(r, h.SessionService.SessionConfig.Name)
 	if err != nil {
 		http.Error(w, "Server error: Unable to get session", http.StatusInternalServerError)
 		return
@@ -135,14 +127,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	sess.Values["refresh_token"]=refreshtoken
 	// sess.Values["created_at"] = time.Now()
 	
-	if err := session.Save(w,r,sess); err != nil {
+	if err := h.SessionService.Save(w,r,sess); err != nil {
 		http.Error(w, "Server error: Unable to save session", http.StatusInternalServerError)
 		return
 	}
 
-	csrf := CSRF.NewCSRF(nil, nil) /// update this
+	// csrf := CSRF.NewCSRF(nil, nil) /// update this
 
-	csrfToken, err := csrf.GenerateCSRF(sess.ID)
+	csrfToken, err := h.CSRFService.GenerateCSRF(sess.ID)
 	if err != nil {
 		http.Error(w, "Server Error", http.StatusInternalServerError)
 		return
@@ -164,7 +156,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 
 
-func HelloHandler(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler)HelloHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("pong"))
 }

@@ -2,33 +2,39 @@ package jwt
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/vksssd/intercom-auth/config"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
-// var jwtSecret = []byte("secret")
+type JWTService struct {
+	Config *config.JWTConfig
+}
 
-func GenerateJWT(username, email string) (string, error) {
+func NewJWTService(cfg *config.JWTConfig) *JWTService {
+	return &JWTService{Config: cfg}
+}
+
+
+func (j *JWTService) GenerateJWT(username, email string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
 		"email":email,
 		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
-	return token.SignedString(jwtSecret)
+	return token.SignedString([]byte(j.Config.Secret))
 }
 
-func ValidateJWT(tokenString string) (*jwt.Token, error) {
+func (j *JWTService) ValidateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
+		return []byte(j.Config.Secret), nil
 	})
 }
 
-func Parse(tokenString string)(jwt.MapClaims, error) {
+func (j *JWTService)Parse(tokenString string)(jwt.MapClaims, error) {
 	// log.Println(tokenString)
-	token, err := ValidateJWT(tokenString)
+	token, err := j.ValidateJWT(tokenString)
 	if err != nil || !token.Valid {
 		// http.Error(w, "Forbidden")
 

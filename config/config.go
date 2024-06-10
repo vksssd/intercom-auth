@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -106,7 +107,11 @@ type JWTConfig struct {
 }
 
 type SessionConfig struct {
-	Secret string `mapstructure:SESSION_KEY`
+	Secret string `mapstructure:"SESSION_KEY"`
+	Name string `mapstructure:"SESSION_NAME"`
+	Timeout time.Duration `mapstructure:"SESSION_TIMEOUT"`
+	CleanUpInterval time.Duration `mapstructure:"SESSION_CLEAN_INTERVAL"`
+	MaxAge     time.Duration `mapstructure:"SESSION_MAX_AGE"`
 }
 
 type RATEConfig struct {

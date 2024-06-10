@@ -5,16 +5,14 @@ import (
 	"time"
 
 	"github.com/gorilla/csrf"
-	"github.com/vksssd/intercom-auth/internal/jwt"
-	"github.com/vksssd/intercom-auth/internal/session"
 	"github.com/vksssd/intercom-auth/internal/utils"
 )
 
 // Replace "your-session-key" with your actual session key.
 
 
-func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
-	sess, err := session.Get(r,"auth-session")
+func(h *AuthHandler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+	sess, err := h.SessionService.Get(r,h.SessionService.SessionConfig.Name)
 	if err != nil {
 		http.Error(w, "Server Error: unable to get session", http.StatusInternalServerError)
 		return
@@ -27,7 +25,7 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := jwt.Parse(tokenString)
+	claims, err := h.JWTService.Parse(tokenString)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
@@ -41,7 +39,7 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTokenString, err := jwt.GenerateJWT(username, email)
+	newTokenString, err := h.JWTService.GenerateJWT(username, email)
 	if err != nil {
 		http.Error(w, "Server Error: unable to generate new token", http.StatusInternalServerError)
 		return
@@ -52,7 +50,7 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	// Set cookie function
 	utils.SetCookie(w, "auth_token", newTokenString, 10000*time.Second)
 	
-	if err = session.Save(w,r,sess); err != nil {
+	if err = h.SessionService.Save(w,r,sess); err != nil {
 		http.Error(w, "Failed to save session", http.StatusInternalServerError)
 		return
 	}
