@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/valyala/fasthttp"
 	"github.com/vksssd/intercom-auth/internal/models"
 	"github.com/vksssd/intercom-auth/internal/utils"
 )
@@ -155,9 +156,14 @@ func (h *AuthHandler)LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-
 func (h *AuthHandler)HelloHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("pong"))
+	w.Write([]byte("pong\n "))
 }
 
+
+func FastHandler(ctx *fasthttp.RequestCtx) {
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Response.Header.AppendBytes([]byte("Hello world"))
+	json.NewEncoder(ctx).Encode("hello fast world")
+}

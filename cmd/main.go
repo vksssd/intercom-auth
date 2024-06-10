@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/valyala/fasthttp"
+	"github.com/vksssd/intercom-auth/api"
 	"github.com/vksssd/intercom-auth/config"
 	csrf "github.com/vksssd/intercom-auth/internal/CSRF"
 	"github.com/vksssd/intercom-auth/internal/handlers"
@@ -53,9 +55,17 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	fmt.Println("Ping server is listening on port 8000...")
-	if err := server.ListenAndServe(); err != nil {
-		fmt.Println("Server error:", err)
-	}
+	fmt.Println("Ping server is listening on port 8080 && 8081...")
+	go server.ListenAndServe()
+	go fasthttp.ListenAndServe(":8081",api.SetupRoutes().Handler)
 	
+	// if err := server.ListenAndServe(); err != nil {
+		// 	fmt.Println("Server error:", err)
+		// }
+	// if err := fasthttp.ListenAndServe(":8080",api.SetupRoutes().Handler); err != nil {
+	// 	log.Fatalf("Error in fast listing ")
+	// }
+
+	//infinite loop to keep server on
+	for {}
 }
