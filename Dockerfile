@@ -1,5 +1,5 @@
 # Dockerfile
-FROM golang:1.22.4
+FROM golang:1.25.3
 
 WORKDIR /app
 
